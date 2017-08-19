@@ -13,10 +13,25 @@ var connection = mysql.createConnection({
 // connect to the mysql server and sql database
 connection.connect(function(err) {
   if (err) throw err;
-  start();
+  var qry = 'SELECT * FROM products'
+  connection.query(qry, function(errr, ress) {
+    if (errr) throw errr;
+    if (process.argv[2] === "purchase") {
+        start();
+    } else {
+      console.log('-------------------------------------------------------------------');
+      console.log(`Item Id | Products Name | Department Name | Price | Stock Quantity`);
+      console.log('-------------------------------------------------------------------');
+        for (var i = 0; i < ress.length; i++) {
+            console.log(`${ress[i].item_id} | ${ress[i].products_name} | ${ress[i].department_name} | $${ress[i].price} | ${ress[i].stock_quantity}`)
+        }
+      console.log('-------------------------------------------------------------------');
+      console.log(`Select a product to purchase by entering Item Id (run this: node bamazonCustomer.js purchase).`)
+      console.log('-------------------------------------------------------------------');
+        connection.end();
+    }
+  });
 });
-
-
 
 
 function start() {
@@ -49,29 +64,36 @@ function start() {
       var quantity = answer.quantity.trim();
 
         if ((productId.length === 0) || (quantity.length === 0)) {
+            console.log('-------------------------------------------------------------------');
             console.log(`
             Please enter a valid ID and Quantity!
             `)
+            console.log('-------------------------------------------------------------------');
             start();
         } else {         
             var query = "SELECT * FROM products WHERE ?";
             connection.query(query, { item_id: answer.productId }, function(err, res) {
 
-                if (res[0].stock_quantity > 0) {
-                    var queryInStk = "UPDATE products SET stock_quantity = stock_quantity - 1 where ?"
-                    connection.query(queryInStk, { item_id: answer.productId }, function(error, response) {
-                        console.log('---------------------------------------------');
-                        console.log(`You have purchased ${res[0].products_name}.`);
-                        console.log(`Your total is: $${res[0].price}`);
-                        console.log('---------------------------------------------');
-                        connection.end();
-                    })
-                } else {
+              if (quantity > res[0].stock_quantity) {
+                console.log('---------------------------------------------');
+                console.log(`Insufficient quantity!`);
+                console.log('---------------------------------------------');
+                start();
+              } else if (res[0].stock_quantity > 0) {
+                var queryInStk = "UPDATE products SET stock_quantity = stock_quantity - ? where item_id = ?"
+                connection.query(queryInStk, [quantity, answer.productId], function(error, response) {
+                    var price = parseFloat(res[0].price);
+                    var quantity = parseFloat(answer.quantity);
+                    var total = price * quantity;
                     console.log('---------------------------------------------');
-                    console.log(`Insufficient quantity!`);
+                    console.log(`You have purchased ${res[0].products_name}.`);
+                    console.log(`Price: ${price}`);
+                    console.log(`Quantity purchased: ${quantity}`);
+                    console.log(`Your total is: $${total}`);
                     console.log('---------------------------------------------');
-                    start();
-                };
+                    connection.end();
+                });
+              };
             });
         };
     });
